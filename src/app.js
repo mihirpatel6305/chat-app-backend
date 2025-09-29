@@ -13,7 +13,7 @@ connectDB();
 // allowed frontend origins
 const allowedOrigins = [
   "http://localhost:5173", // local dev
-  "https://your-frontend-domain.com", // production domain
+  "https://chat-app-frontend-one-xi.vercel.app", // production domain
 ];
 
 // CORS setup
