@@ -11,19 +11,13 @@ const activeUserMap = new Map();
 
 function setupSocketIO(server) {
   const allowedOrigins = [
-    "http://localhost:5173", // dev
-    "https://chat-app-frontend-one-xi.vercel.app/", // prod
+    "http://localhost:5173",
+    "https://chat-app-frontend-one-xi.vercel.app",
   ];
 
   io = new Server(server, {
     cors: {
-      origin: (origin, callback) => {
-        if (!origin || allowedOrigins.includes(origin)) {
-          callback(null, true);
-        } else {
-          callback(new Error("Not allowed by CORS (socket.io)"));
-        }
-      },
+      origin: allowedOrigins,
       methods: ["GET", "POST"],
       credentials: true,
     },
