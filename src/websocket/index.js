@@ -12,7 +12,7 @@ const activeUserMap = new Map();
 function setupSocketIO(server) {
   const allowedOrigins = [
     "http://localhost:5173", // dev
-    "https://your-frontend-domain.com", // prod
+    "https://chat-app-frontend-one-xi.vercel.app/", // prod
   ];
 
   io = new Server(server, {
