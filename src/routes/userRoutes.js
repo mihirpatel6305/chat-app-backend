@@ -8,7 +8,7 @@ import { ProtectedRoutes } from "../middleware/auth.js";
 
 const routes = express.Router();
 
-routes.get("/allUser", ProtectedRoutes, getAllUser);
+routes.get("/users", ProtectedRoutes, getAllUser);
 
 routes.get("/me", ProtectedRoutes, getLoginUser);
 

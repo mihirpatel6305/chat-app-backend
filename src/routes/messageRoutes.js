@@ -1,7 +1,6 @@
 import express from "express";
 import { ProtectedRoutes } from "../middleware/auth.js";
 import {
-  getChatMessage,
   getUnreadCount,
   saveImageMessage,
 } from "../controllers/messageController.js";
@@ -9,12 +8,10 @@ import upload from "../config/multer.js";
 
 const routes = express.Router();
 
-routes.get("/:id", ProtectedRoutes, getChatMessage);
-
-routes.get("/unreadCount/:id", ProtectedRoutes, getUnreadCount);
+routes.get("/unread-count/:id", ProtectedRoutes, getUnreadCount);
 
 routes.post(
-  "/sendImage/:id",
+  "/image/:id",
   ProtectedRoutes,
   upload.single("image"),
   saveImageMessage
