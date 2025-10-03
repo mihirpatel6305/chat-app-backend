@@ -49,11 +49,14 @@ export async function loginUser(req, res) {
       expiresIn: "1d",
     });
 
+    // For remove password by destructuring here
+    const { password: pass, ...userWithoutPassword } = user.toObject();
+
     return res.status(200).json({
       success: true,
       statusCode: 200,
       message: "Success",
-      data: { user, token },
+      data: { user: userWithoutPassword, token },
     });
   } catch (err) {
     console.error(err);
@@ -124,11 +127,14 @@ export async function signupUser(req, res) {
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
       expiresIn: "1d",
     });
+
+    const { password: pass, ...userWithoutPassword } = user.toObject();
+
     res.json({
       success: true,
       statusCode: 200,
       message: "Success",
-      data: { user, token },
+      data: { user: userWithoutPassword, token },
     });
   } catch (err) {
     console.error(err);
