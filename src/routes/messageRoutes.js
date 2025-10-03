@@ -4,7 +4,7 @@ import {
   getUnreadCount,
   saveImageMessage,
 } from "../controllers/messageController.js";
-import { uploadImageMiddleware } from "../middleware/uploadhandler.js";
+import { uploadImageMiddleware } from "../middleware/uploadHandler.js";
 
 const routes = express.Router();
 
