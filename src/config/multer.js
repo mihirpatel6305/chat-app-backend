@@ -10,6 +10,17 @@ const storage = new CloudinaryStorage({
   },
 });
 
-const upload = multer({ storage });
+const upload = multer({
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith("image/")) {
+      cb(null, true);
+    } else {
+      // Reject non-image files
+      cb(new multer.MulterError("LIMIT_UNEXPECTED_FILE"));
+    }
+  },
+});
 
 export default upload;

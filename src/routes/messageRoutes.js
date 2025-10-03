@@ -4,7 +4,7 @@ import {
   getUnreadCount,
   saveImageMessage,
 } from "../controllers/messageController.js";
-import upload from "../config/multer.js";
+import { uploadImageMiddleware } from "../middleware/uploadhandler.js";
 
 const routes = express.Router();
 
@@ -13,7 +13,7 @@ routes.get("/unread-count/:id", ProtectedRoutes, getUnreadCount);
 routes.post(
   "/image/:id",
   ProtectedRoutes,
-  upload.single("image"),
+  uploadImageMiddleware,
   saveImageMessage
 );
 
