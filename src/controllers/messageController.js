@@ -40,6 +40,7 @@ export async function saveImageMessage(req, res) {
       senderId,
       receiverId,
       image: imageUrl,
+      status: "sent",
     });
 
     const newMsg = await newMessage.save();
@@ -123,32 +124,6 @@ export async function markAsRead({ userId, chatWithId }) {
   }
 }
 
-// export async function fetchMessages(
-//   { senderId, receiverId },
-//   limit = 5,
-//   before
-// ) {
-//   try {
-//     const query = {
-//       $or: [
-//         { senderId: senderId, receiverId: receiverId },
-//         { senderId: receiverId, receiverId: senderId },
-//       ],
-//     };
-
-//     if (before) {
-//       query.createdAt = { $lt: before };
-//     }
-
-//     const messages = await Message.find(query)
-//       .sort({ createdAt: -1 })
-//       .limit(limit);
-//     return messages;
-//   } catch (error) {
-//     console.error("Error in fetchMessages >>", error);
-//   }
-// }
-
 export async function fetchMessages(
   { senderId, receiverId },
   limit = 5,
@@ -166,37 +141,9 @@ export async function fetchMessages(
       query.createdAt = { $lt: before };
     }
 
-    // Fetch messages
     const messages = await Message.find(query)
       .sort({ createdAt: -1 })
       .limit(limit);
-
-    // Update status to "delivered" for messages sent to the current user
-    const toDeliver = await Message.updateMany(
-      {
-        senderId: receiverId,
-        receiverId: senderId,
-        status: "sent",
-      },
-      { $set: { status: "delivered" } }
-    );
-
-    // Emit delivered messages back to sender
-    if (io && toDeliver.modifiedCount > 0) {
-      const deliveredMessages = await Message.find({
-        senderId: receiverId,
-        receiverId: senderId,
-        status: "delivered",
-      });
-
-      deliveredMessages.forEach((msg) => {
-        const senderSocketId = userSocketMap.get(msg.senderId.toString());
-        if (senderSocketId) {
-          io.to(senderSocketId).emit("message_delivered", msg);
-        }
-      });
-    }
-
     return messages;
   } catch (error) {
     console.error("Error in fetchMessages >>", error);
@@ -206,7 +153,7 @@ export async function fetchMessages(
 export async function setMessageDelivered(message) {
   try {
     const result = await Message.findByIdAndUpdate(
-      message._id,
+      { _id: message._id, status: { $ne: "seen" } },
       { $set: { status: "delivered" } },
       { new: true }
     );
