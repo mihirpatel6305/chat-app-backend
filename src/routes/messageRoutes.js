@@ -3,6 +3,7 @@ import { ProtectedRoutes } from "../middleware/auth.js";
 import {
   getUnreadCount,
   saveImageMessage,
+  setAllDelivered,
 } from "../controllers/messageController.js";
 import { uploadImageMiddleware } from "../middleware/uploadHandler.js";
 
@@ -16,5 +17,7 @@ routes.post(
   uploadImageMiddleware,
   saveImageMessage
 );
+
+routes.put("/delivered", ProtectedRoutes, setAllDelivered);
 
 export default routes;

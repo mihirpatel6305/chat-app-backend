@@ -92,6 +92,52 @@ export async function getUnreadCount(req, res) {
   }
 }
 
+export async function setAllDelivered(req, res) {
+  try {
+    const userId = req?.user?._id;
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        statusCode: 401,
+        message: "Unauthorized",
+      });
+    }
+
+    const result = await Message.updateMany(
+      { receiverId: userId, status: "sent" },
+      { $set: { status: "delivered" } }
+    );
+
+    const deliveredMessages = await Message.find({
+      receiverId: userId,
+      status: "delivered",
+    });
+
+    // Emit message_delivered event to each sender
+    deliveredMessages.forEach((msg) => {
+      const senderSocketId = userSocketMap.get(msg.senderId.toString());
+      if (senderSocketId) {
+        io.to(senderSocketId).emit("message_delivered", msg);
+      }
+    });
+
+    return res.status(200).json({
+      success: true,
+      statusCode: 200,
+      message: "All sent messages are now marked as delivered",
+      data: { updatedCount: result.modifiedCount },
+    });
+  } catch (error) {
+    console.error("Error in setAllDelivered >>", error);
+    return res.status(500).json({
+      success: false,
+      statusCode: 500,
+      message: "Internal Server Error",
+      errors: [],
+    });
+  }
+}
+
 export async function saveMessage({ senderId, receiverId, text, status }) {
   try {
     const message = await Message.create({
