@@ -69,7 +69,7 @@ export async function getUnreadCount(req, res) {
   const userId = req?.user?._id;
   try {
     const unreadCounts = await Message.aggregate([
-      { $match: { receiverId: userId, isUnread: true } },
+      { $match: { receiverId: userId, status: { $ne: "seen" } } },
       { $group: { _id: "$senderId", unreadCount: { $sum: 1 } } },
       { $project: { userId: "$_id", unreadCount: 1, _id: 0 } },
     ]);
@@ -91,13 +91,13 @@ export async function getUnreadCount(req, res) {
   }
 }
 
-export async function saveMessage({ senderId, receiverId, text, isUnread }) {
+export async function saveMessage({ senderId, receiverId, text, status }) {
   try {
     const message = await Message.create({
       senderId,
       receiverId,
       text,
-      isUnread,
+      status,
     });
     return message;
   } catch (error) {
@@ -112,9 +112,9 @@ export async function markAsRead({ userId, chatWithId }) {
       {
         senderId: chatWithId,
         receiverId: userId,
-        isUnread: true,
+        status: { $ne: "seen" },
       },
-      { $set: { isUnread: false } }
+      { $set: { status: "seen" } }
     );
     return result;
   } catch (error) {
@@ -122,6 +122,32 @@ export async function markAsRead({ userId, chatWithId }) {
     throw error;
   }
 }
+
+// export async function fetchMessages(
+//   { senderId, receiverId },
+//   limit = 5,
+//   before
+// ) {
+//   try {
+//     const query = {
+//       $or: [
+//         { senderId: senderId, receiverId: receiverId },
+//         { senderId: receiverId, receiverId: senderId },
+//       ],
+//     };
+
+//     if (before) {
+//       query.createdAt = { $lt: before };
+//     }
+
+//     const messages = await Message.find(query)
+//       .sort({ createdAt: -1 })
+//       .limit(limit);
+//     return messages;
+//   } catch (error) {
+//     console.error("Error in fetchMessages >>", error);
+//   }
+// }
 
 export async function fetchMessages(
   { senderId, receiverId },
@@ -140,11 +166,69 @@ export async function fetchMessages(
       query.createdAt = { $lt: before };
     }
 
+    // Fetch messages
     const messages = await Message.find(query)
       .sort({ createdAt: -1 })
       .limit(limit);
+
+    // Update status to "delivered" for messages sent to the current user
+    const toDeliver = await Message.updateMany(
+      {
+        senderId: receiverId,
+        receiverId: senderId,
+        status: "sent",
+      },
+      { $set: { status: "delivered" } }
+    );
+
+    // Emit delivered messages back to sender
+    if (io && toDeliver.modifiedCount > 0) {
+      const deliveredMessages = await Message.find({
+        senderId: receiverId,
+        receiverId: senderId,
+        status: "delivered",
+      });
+
+      deliveredMessages.forEach((msg) => {
+        const senderSocketId = userSocketMap.get(msg.senderId.toString());
+        if (senderSocketId) {
+          io.to(senderSocketId).emit("message_delivered", msg);
+        }
+      });
+    }
+
     return messages;
   } catch (error) {
     console.error("Error in fetchMessages >>", error);
+  }
+}
+
+export async function setMessageDelivered(message) {
+  try {
+    const result = await Message.findByIdAndUpdate(
+      message._id,
+      { $set: { status: "delivered" } },
+      { new: true }
+    );
+
+    return result;
+  } catch (error) {
+    console.error("Error in setMessageDelivered >>", error);
+    throw error;
+  }
+}
+
+export async function setMessageSeen(message) {
+  try {
+    const result = await Message.findByIdAndUpdate(
+      message._id,
+      { $set: { status: "seen" } },
+      { new: true }
+    );
+
+    return result;
+  } catch (error) {
+    console.error("Error in setMessageSeen >>", error);
+    throw error;
   }
 }

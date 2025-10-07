@@ -11,10 +11,17 @@ export async function loginUser(req, res) {
     password = password?.trim();
 
     const errors = [];
-    if (!validator.isEmail(email))
+    if (!email.length > 0) {
+      errors.push({ field: "email", message: "Email required" });
+    } else if (!validator.isEmail(email)) {
       errors.push({ field: "email", message: "Invalid email format" });
-    if (!password || password.length > 6)
+    }
+
+    if (!password) {
+      errors.push({ field: "password", message: "Password is Required" });
+    } else if (password.length > 6) {
       errors.push({ field: "password", message: "Invalid password" });
+    }
 
     if (errors.length > 0) {
       return res.status(400).json({
@@ -71,11 +78,12 @@ export async function loginUser(req, res) {
 
 export async function signupUser(req, res) {
   try {
-    let { name, email, password } = req.body;
+    let { name, email, password, confirmPassword } = req.body;
 
     name = name?.trim();
     email = email?.trim();
     password = password?.trim();
+    confirmPassword = confirmPassword?.trim();
 
     const errors = [];
 
@@ -86,17 +94,33 @@ export async function signupUser(req, res) {
       });
     }
 
-    if (!validator.isEmail(email)) {
+    if (!email.length > 0) {
+      errors.push({ field: "email", message: "Email required" });
+    } else if (!validator.isEmail(email)) {
       errors.push({
         field: "email",
         message: "Invalid email format",
       });
     }
 
-    if (password.length < 6) {
+    if (!password) {
+      errors.push({ field: "password", message: "Password is Required" });
+    } else if (password.length < 6) {
       errors.push({
         field: "password",
         message: "Password must be at least 6 characters",
+      });
+    }
+
+    if (!confirmPassword) {
+      errors.push({
+        field: "confirmPassword",
+        message: "Confirm Password is required",
+      });
+    } else if (confirmPassword !== password) {
+      errors.push({
+        field: "confirmPassword",
+        message: "Passwords do not match",
       });
     }
 

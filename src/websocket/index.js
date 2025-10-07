@@ -3,6 +3,8 @@ import {
   fetchMessages,
   markAsRead,
   saveMessage,
+  setMessageDelivered,
+  setMessageSeen,
 } from "../controllers/messageController.js";
 
 let io;
@@ -27,11 +29,13 @@ function setupSocketIO(server) {
   io.on("connection", (socket) => {
     console.log("connection>>", socket.id);
 
+    // Set userId with socketId in Map
     socket.on("user_connected", (userId) => {
       userSocketMap.set(userId, socket.id);
       io.emit("onlineUsers", Array.from(userSocketMap.keys()));
     });
 
+    // Active if Receiver already open sender chat window
     socket.on("active", ({ senderId, receiverId }) => {
       activeUserMap.set(senderId, receiverId);
     });
@@ -40,20 +44,49 @@ function setupSocketIO(server) {
       activeUserMap.delete(senderId);
     });
 
-    socket.on("message", async ({ senderId, receiverId, text }) => {
+    socket.on("message", async ({ senderId, receiverId, text, tempId }) => {
       const isChatOpen =
         activeUserMap.has(receiverId) &&
         activeUserMap.get(receiverId) === senderId;
 
-      const msg = { senderId, receiverId, text, isUnread: !isChatOpen };
+      const msg = {
+        senderId,
+        receiverId,
+        text,
+        status: isChatOpen ? "seen" : "sent",
+      };
       const message = await saveMessage(msg);
+
+      // For message send acknowledge
+      const senderSocketId = userSocketMap.get(senderId);
+      io.to(senderSocketId).emit("message_sent", { ...message, tempId });
+
+      // Sending to receiver here
       const socketId = userSocketMap.get(receiverId);
       io.to(socketId).emit("message", message);
+    });
+
+    socket.on("message_delivered", async (message) => {
+      // Update status in DB
+      const updatedMsg = await setMessageDelivered(message);
+
+      const senderSocketId = userSocketMap.get(message?.senderId);
+      io.to(senderSocketId).emit("message_delivered", updatedMsg);
+    });
+
+    socket.on("message_seen", async (message) => {
+      const updatedMsg = await setMessageSeen(message);
+
+      const senderSocketId = userSocketMap.get(message?.senderId);
+      io.to(senderSocketId).emit("message_seen", updatedMsg);
     });
 
     socket.on("mark_as_read", async ({ userId, chatWithId }) => {
       if (userId && chatWithId) {
         await markAsRead({ userId, chatWithId });
+
+        const socketId = userSocketMap.get(chatWithId);
+        io.to(socketId).emit("mark_as_read", { seenby: userId });
       } else {
         console.error("mark_as_read failed: userId or chatWithId is missing", {
           userId,
@@ -62,6 +95,7 @@ function setupSocketIO(server) {
       }
     });
 
+    // For Typing Indicator
     socket.on("start_typing", ({ senderId, receiverId }) => {
       const socketId = userSocketMap.get(receiverId);
       io.to(socketId).emit("start_typing", { senderId });
@@ -72,6 +106,7 @@ function setupSocketIO(server) {
       io.to(socketId).emit("stop_typing", { senderId });
     });
 
+    // Sending initial messages from DB
     socket.on(
       "getInitialMessages",
       async ({ senderId, receiverId, before }) => {
@@ -86,7 +121,7 @@ function setupSocketIO(server) {
     );
 
     socket.on("getPrevMessages", async ({ senderId, receiverId, before }) => {
-      const limit = 5;
+      const limit = 10;
       const messages = await fetchMessages(
         { senderId, receiverId },
         limit,
@@ -109,6 +144,7 @@ function setupSocketIO(server) {
       for (const [userId, socketId] of userSocketMap.entries()) {
         if (socketId === socket.id) {
           userSocketMap.delete(userId);
+          activeUserMap.delete(userId);
         }
       }
       io.emit("onlineUsers", Array.from(userSocketMap.keys()));
