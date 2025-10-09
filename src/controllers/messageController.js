@@ -138,6 +138,41 @@ export async function setAllDelivered(req, res) {
   }
 }
 
+export async function getLatestMsg(req, res) {
+  const userId = req.user._id;
+
+  try {
+    const latestMessages = await Message.aggregate([
+      { $match: { $or: [{ senderId: userId }, { receiverId: userId }] } },
+      { $sort: { createdAt: -1 } },
+      {
+        $group: {
+          _id: {
+            $cond: [{ $eq: ["$senderId", userId] }, "$receiverId", "$senderId"],
+          },
+          lastMessageAt: { $first: "$createdAt" },
+        },
+      },
+      { $sort: { lastMessageAt: -1 } },
+    ]);
+
+    return res.status(200).json({
+      success: true,
+      statusCode: 200,
+      message: "Successfully fetched latest messages",
+      data: { latestMessages },
+    });
+  } catch (error) {
+    console.error("Error in getLatestMsg >>", error);
+    return res.status(500).json({
+      success: false,
+      statusCode: 500,
+      message: "Internal Server Error",
+      errors: [],
+    });
+  }
+}
+
 export async function saveMessage({ senderId, receiverId, text, status }) {
   try {
     const message = await Message.create({
